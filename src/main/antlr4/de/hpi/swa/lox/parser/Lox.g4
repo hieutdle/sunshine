@@ -1,0 +1,58 @@
+grammar Lox;
+
+// Lox Grammar adapted from https://craftinginterpreters.com/appendix-i.html
+
+@parser::header {
+// DO NOT MODIFY - generated from Lox.g4
+}
+
+@lexer::header {
+// DO NOT MODIFY - generated from Lox.g4
+}
+
+program: declaration* EOF;
+
+declaration: statement;
+
+statement: printStmt;
+
+printStmt: 'print' expression ';';
+
+expression: logic_or;
+logic_or: logic_and ( 'or' logic_and)*;
+logic_and: equality ( 'and' equality)*;
+equality: comparison ( ( '!=' | '==') comparison)*;
+comparison: term ( ( '>' | '>=' | '<' | '<=') term)*;
+term: factor ( ( '-' | '+') factor)*;
+factor: unary ( ( '/' | '*') unary)*;
+
+unary: ( '!' | '-') unary | primary;
+
+primary:
+	number
+	| string
+	| true
+	| false
+	| nil
+	| '(' expression ')';
+
+string: STRING;
+nil: 'nil';
+true: 'true';
+false: 'false';
+number: NUMBER;
+
+NUMBER: DIGIT+ ( '.' DIGIT+)?;
+STRING: '"' (~["\\])* '"';
+IDENTIFIER: ALPHA ( ALPHA | DIGIT)*;
+fragment ALPHA: [a-zA-Z_];
+fragment DIGIT: [0-9];
+
+// more...
+WS: [ \t\r\n]+ -> skip;
+
+// Local Variables: eval: (add-hook 'after-save-hook (lambda () (if (fboundp 'lsp-workspace-root)
+// (if-let ((workspace (car (gethash (lsp-workspace-root) (lsp-session-folder->servers
+// (lsp-session)))))) (with-lsp-workspace workspace (lsp-notify "workspace/didChangeWatchedFiles"
+// `((changes . [((type . ,(alist-get 'changed lsp--file-change-type)) (uri . ,(lsp--path-to-uri
+// buffer-file-name)))]))))))) nil t) End:

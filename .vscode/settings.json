@@ -1,0 +1,29 @@
+{
+    // Customize this to point to (any) JDK 21 or later
+    "java.jdt.ls.java.home": "/home/hieule/.sdkman/candidates/java/23.0.2-graal",
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.sharedIndexes.enabled": "off",
+    "java.autobuild.enabled": true,
+    "java.diagnostic.filter": [
+        "**/*Gen.java",
+        "target/generated-sources/**",
+    ],
+    "java.debug.settings.onBuildFailureProceed": true,
+    "java.testMethod": [
+        "mvn",
+        "test",
+        "-Dtest=${class}#${method}"
+    ],
+    "java.debugTestMethod": [
+        "mvn",
+        "test",
+        "-Dtest=${class}#${method}",
+        "-Dmaven.surefire.debug"
+    ],
+    "java.testClass": [
+        "mvn",
+        "test",
+        "-Dtest=${class}"
+    ],
+    "makefile.configureOnOpen": false
+}

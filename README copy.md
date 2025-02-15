@@ -1,6 +1,5 @@
 # Sunshine -- A Lox Truffle Bytecode Interpreter
 
-Sunshine is a bytecode interpreter for the Lox programming language. It is implemented using the Truffle framework, which is a self-optimizing runtime for programming languages.
 The Lox implementation is developed as part of the Build Your Own Programming Language course at Software Architecture Group, Hasso Plattner Institute, Potsdam.
 
 ## Getting Started
@@ -9,7 +8,7 @@ The Lox implementation is developed as part of the Build Your Own Programming La
 
 To directly use the command line, this might be helpful:
 
-### Compile
+### Compile ...
 
 ```bash
 ./mvnw package
