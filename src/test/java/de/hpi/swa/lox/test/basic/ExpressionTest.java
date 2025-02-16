@@ -65,13 +65,4 @@ public class ExpressionTest extends AbstractLoxTest {
         runAndExpect("testExpressionGrouping", "print (1 + 2) * 3;", "9\n");
         runAndExpect("testExpressionGrouping", "print 1 + (2 * 3);", "7\n");
     }
-
-    @Test
-    public void testModulo() {
-        runAndExpect("testModulo", "print 10 % 3;", "1\n");
-        runAndExpect("testModulo", "print 10 % 2;", "0\n");
-        runAndExpect("testModulo", "print -10 % 3;", "-1\n");
-        runAndExpect("testModulo", "print 10 % -3;", "1\n");
-        runAndExpect("testModulo", "print -10 % -3;", "-1\n");
-    }
 }

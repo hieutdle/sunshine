@@ -181,10 +181,90 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
 
     @Override
     public Void visitString(StringContext ctx) {
-        var ts = TruffleString.fromJavaStringUncached(
-                ctx.getText().substring(1, ctx.getText().length() - 1), TruffleString.Encoding.UTF_8);
-        b.emitLoadConstant(ts);
-        return super.visitString(ctx);
+        List<Object> parts = new ArrayList<>();
+        String stringContent = ctx.getText().substring(1, ctx.getText().length() - 1); // Remove surrounding quotes
+
+        // Split the string content into static parts and interpolated expressions
+        // This is a simplified parsing approach; actual implementation should use the parsed AST from the grammar
+        int start = 0;
+        while (true) {
+            int interpolationStart = stringContent.indexOf("${", start);
+            if (interpolationStart == -1) {
+                // Add the remaining static part
+                String fragment = stringContent.substring(start);
+                if (!fragment.isEmpty()) {
+                    parts.add(unescapeString(fragment));
+                }
+                break;
+            }
+
+            // Add the static part before the interpolation
+            String fragment = stringContent.substring(start, interpolationStart);
+            if (!fragment.isEmpty()) {
+                parts.add(unescapeString(fragment));
+            }
+
+            int interpolationEnd = stringContent.indexOf('}', interpolationStart + 2);
+            if (interpolationEnd == -1) {
+                // Unterminated interpolation, handle error if needed
+                break;
+            }
+
+            // Extract the expression inside ${...}
+            String expressionStr = stringContent.substring(interpolationStart + 2, interpolationEnd);
+            // Parse the expression (this requires integrating with the lexer/parser)
+            // For simplicity, assume the expression is parsed into an ExpressionContext
+            // Here, we manually parse the expression (this part would typically be handled by the parser)
+            LoxLexer lexer = new LoxLexer(CharStreams.fromString(expressionStr));
+            LoxParser parser = new LoxParser(new CommonTokenStream(lexer));
+            LoxParser.ExpressionContext expr = parser.expression();
+            parts.add(expr);
+
+            start = interpolationEnd + 1;
+        }
+
+        if (parts.isEmpty()) {
+            b.emitLoadConstant(Nil.INSTANCE);
+            return null;
+        }
+
+        // Process the first part
+        processPart(parts.get(0));
+
+        // Process remaining parts and concatenate
+        for (int i = 1; i < parts.size(); i++) {
+            processPart(parts.get(i));
+            b.beginLoxAdd();
+            b.endLoxAdd();
+        }
+
+        return null;
+    }
+
+    private void processPart(Object part) {
+        switch (part) {
+            case String fragment -> {
+                TruffleString ts = TruffleString.fromJavaStringUncached(fragment, TruffleString.Encoding.UTF_8);
+                b.emitLoadConstant(ts);
+            }
+            case LoxParser.ExpressionContext expr -> {
+                visit(expr); // Generate code to evaluate the expression
+                // Convert the result to a string by concatenating with an empty string
+                b.emitLoadConstant(Nil.INSTANCE);
+                b.beginLoxAdd();
+                b.endLoxAdd();
+            }
+            default -> {
+            }
+        }
+    }
+
+    private String unescapeString(String text) {
+        // Implement proper unescaping for escape sequences like \n, \t, \", etc.
+        return text.replace("\\n", "\n")
+                .replace("\\t", "\t")
+                .replace("\\\"", "\"")
+                .replace("\\\\", "\\");
     }
 
     @Override
