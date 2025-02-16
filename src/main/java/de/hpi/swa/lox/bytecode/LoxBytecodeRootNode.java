@@ -780,4 +780,18 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
             return null;
         }
     }
+
+    @Operation
+    public static final class LoxArraySize {
+        @Specialization
+        static int doLoxArray(LoxArray array) {
+            return array.getSize();
+        }
+
+        @Fallback
+        @CompilerDirectives.TruffleBoundary
+        static int doError(Object array, @Bind Node node) {
+            throw new LoxRuntimeError("Expected array, got " + array.getClass().getSimpleName(), node);
+        }
+    }
 }

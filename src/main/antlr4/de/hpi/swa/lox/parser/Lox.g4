@@ -23,8 +23,14 @@ statement:
 	| block
 	| breakStmt
 	| continueStmt
-	| postfixConditionStmt;
+	| postfixConditionStmt
+	| forOfStmt
+	| forInStmt;
 
+forOfStmt:
+	'for' '(' 'var' IDENTIFIER 'of' expression ')' statement;
+forInStmt:
+	'for' '(' 'var' IDENTIFIER 'in' expression ')' statement;
 postfixConditionStmt:
 	then = statementBody keyword = ('if' | 'unless') '(' condition = expression ')' ';';
 statementBody: expression | 'print' exp = expression;

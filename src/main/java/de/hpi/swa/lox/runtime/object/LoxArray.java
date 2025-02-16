@@ -65,4 +65,8 @@ public class LoxArray {
         sb.append("]");
         return sb.toString();
     }
+
+    public int getSize() {
+        return size;
+    }
 }
