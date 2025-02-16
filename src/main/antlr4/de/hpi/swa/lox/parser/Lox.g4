@@ -14,7 +14,23 @@ program: declaration* EOF;
 
 declaration: varDecl | statement;
 
-statement: exprStmt | printStmt | block;
+statement:
+	exprStmt
+	| forStmt
+	| ifStmt
+	| whileStmt
+	| printStmt
+	| block;
+
+forStmt:
+	'for' '(' (varDecl | exprStmt | ';') condition = expression? ';' increment = expression? ')'
+		body = statement;
+ifStmt:
+	'if' '(' condition = expression ')' then = statement (
+		'else' alt = statement
+	)?;
+whileStmt:
+	'while' '(' condition = expression ')' body = statement;
 
 varDecl:
 	'var' IDENTIFIER ('=' expression)? ';'
@@ -27,7 +43,10 @@ block: '{' declaration* '}';
 
 expression: assignment;
 
-assignment: IDENTIFIER '=' assignment | logic_or;
+assignment: IDENTIFIER '=' assignment | arrAssignment;
+arrAssignment:
+	left = variableExpr '[' index = expression ']' '=' right = assignment
+	| other = logic_or;
 
 logic_or: logic_and ( 'or' logic_and)*;
 logic_and: equality ( 'and' equality)*;
@@ -45,7 +64,11 @@ primary:
 	| false
 	| nil
 	| variableExpr
-	| '(' expression ')';
+	| '(' expression ')'
+	| array
+	| arrayExpr;
+arrayExpr: left = variableExpr '[' index = expression ']';
+array: '[]';
 
 variableExpr: IDENTIFIER;
 

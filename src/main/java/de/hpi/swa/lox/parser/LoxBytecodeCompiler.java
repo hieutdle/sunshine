@@ -537,6 +537,99 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitIfStmt(LoxParser.IfStmtContext ctx) {
+        if (ctx.alt == null) {
+            b.beginIfThen();
+            beginAttribution(ctx.condition);
+            b.beginLoxIsTruthy();
+            visit(ctx.condition);
+            b.endLoxIsTruthy();
+            endAttribution();
+            visit(ctx.then);
+            b.endIfThen();
+        } else {
+            b.beginIfThenElse();
+            beginAttribution(ctx.condition);
+            b.beginLoxIsTruthy();
+            visit(ctx.condition);
+            b.endLoxIsTruthy();
+            endAttribution();
+            visit(ctx.then);
+            visit(ctx.alt);
+            b.endIfThenElse();
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitWhileStmt(LoxParser.WhileStmtContext ctx) {
+        b.beginWhile();
+        beginAttribution(ctx.condition);
+        b.beginLoxIsTruthy();
+        visit(ctx.condition);
+        b.endLoxIsTruthy();
+        endAttribution();
+        visit(ctx.body);
+        b.endWhile();
+        return null;
+    }
+
+    @Override
+    public Void visitForStmt(LoxParser.ForStmtContext ctx) {
+        curScope = new LexicalScope(curScope);
+        b.beginBlock();
+        ParserRuleContext init = ctx.varDecl();
+        if (init == null) {
+            init = ctx.exprStmt();
+        }
+        if (init != null) {
+            visit(init);
+        }
+        b.beginWhile();
+        beginAttribution(ctx.condition);
+        b.beginLoxIsTruthy();
+        visit(ctx.condition);
+        b.endLoxIsTruthy();
+        endAttribution();
+        b.beginBlock();
+        visit(ctx.body);
+        visit(ctx.increment);
+        b.endBlock();
+        b.endWhile();
+        curScope = curScope.parent;
+        b.endBlock();
+        return null;
+    }
+
+    @Override
+    public Void visitArray(LoxParser.ArrayContext ctx) {
+        b.emitLoxNewArray();
+        return super.visitArray(ctx);
+    }
+
+    @Override
+    public Void visitArrayExpr(LoxParser.ArrayExprContext ctx) {
+        b.beginLoxReadArray();
+        visit(ctx.left);
+        visit(ctx.index);
+        b.endLoxReadArray();
+        return null;
+    }
+
+    @Override
+    public Void visitArrAssignment(LoxParser.ArrAssignmentContext ctx) {
+        if (ctx.other != null) {
+            return visit(ctx.other);
+        }
+        b.beginLoxWriteArray();
+        visit(ctx.left);
+        visit(ctx.index);
+        visit(ctx.right);
+        b.endLoxWriteArray();
+        return null;
+    }
+
     private class LexicalScope {
         final LexicalScope parent;
         final Map<String, BytecodeLocal> locals;

@@ -24,6 +24,8 @@ import de.hpi.swa.lox.error.LoxRuntimeError;
 import de.hpi.swa.lox.nodes.LoxRootNode;
 import de.hpi.swa.lox.runtime.LoxContext;
 import de.hpi.swa.lox.runtime.object.GlobalObject;
+import de.hpi.swa.lox.runtime.object.LoxArray;
+import de.hpi.swa.lox.runtime.object.Nil;
 
 @GenerateBytecode(//
         languageClass = LoxLanguage.class, //
@@ -623,9 +625,8 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
         }
 
         @Fallback
-        @CompilerDirectives.TruffleBoundary
-        static Object typeError(Object value, @Bind Node node) {
-            throw new LoxRuntimeError("Unsupported type for logical not: cannot negate " + value, node);
+        static Object fallback(Object value, @Bind Node node) {
+            return !isTruthy(value);
         }
     }
 
@@ -643,6 +644,7 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
         static boolean doAnd(boolean left, boolean right) {
             return left && right;
         }
+
     }
 
     @CompilerDirectives.TruffleBoundary
@@ -721,6 +723,52 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
             if (accessor.isCleared(bytecodeNode, frame)) {
                 throw new LoxRuntimeError("Variable " + accessor.toString() + " was not defined", node);
             }
+        }
+    }
+
+    static private boolean isTruthy(Object object) {
+        if (object == Nil.INSTANCE)
+            return false;
+        if (object instanceof Boolean)
+            return (boolean) object;
+        return true;
+    }
+
+    @Operation
+    public static final class LoxIsTruthy {
+        @Specialization
+        static boolean bool(boolean value) {
+            return value == true;
+        }
+
+        @Fallback
+        static boolean doDefault(Object value) {
+            return isTruthy(value);
+        }
+    }
+
+    @Operation
+    public static final class LoxNewArray {
+        @Specialization
+        static Object fallback() {
+            return new LoxArray();
+        }
+    }
+
+    @Operation
+    public static final class LoxReadArray {
+        @Specialization(guards = "index >= 0")
+        static Object readArray(LoxArray array, long index) {
+            return array.get((int) index);
+        }
+    }
+
+    @Operation
+    public static final class LoxWriteArray {
+        @Specialization(guards = "index >= 0")
+        static Void writeArray(LoxArray array, long index, Object value) {
+            array.set((int) index, value);
+            return null;
         }
     }
 }
