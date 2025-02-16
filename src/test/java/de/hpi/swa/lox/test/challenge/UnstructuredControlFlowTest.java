@@ -4,7 +4,7 @@ import org.junit.Test;
 
 import de.hpi.swa.lox.test.AbstractLoxTest;
 
-public class ControlFlowTest extends AbstractLoxTest {
+public class UnstructuredControlFlowTest extends AbstractLoxTest {
     @Test
     public void testWhileLoopBreak() {
         runAndExpect("while loop with break",
