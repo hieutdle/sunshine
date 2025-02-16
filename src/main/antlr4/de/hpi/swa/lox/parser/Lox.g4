@@ -68,7 +68,7 @@ primary:
 	| array
 	| arrayExpr;
 arrayExpr: left = variableExpr '[' index = expression ']';
-array: '[]';
+array: '[' (expression (',' expression)*)? ']';
 
 variableExpr: IDENTIFIER;
 

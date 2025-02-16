@@ -604,8 +604,19 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
 
     @Override
     public Void visitArray(LoxParser.ArrayContext ctx) {
-        b.emitLoxNewArray();
-        return super.visitArray(ctx);
+        List<LoxParser.ExpressionContext> elements = ctx.expression();
+
+        if (elements.isEmpty()) {
+            b.emitLoxNewArray();
+        } else {
+            b.beginLoxArrayLiterals();
+            for (LoxParser.ExpressionContext expr : elements) {
+                visit(expr);
+            }
+            b.endLoxArrayLiterals();
+        }
+
+        return null;
     }
 
     @Override

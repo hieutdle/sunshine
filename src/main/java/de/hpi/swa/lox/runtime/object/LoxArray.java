@@ -11,6 +11,12 @@ public class LoxArray {
 
     public LoxArray() {
         elements = new Object[10];
+        size = 0;
+    }
+
+    public LoxArray(Object... initialElements) {
+        elements = Arrays.copyOf(initialElements, initialElements.length);
+        size = initialElements.length;
     }
 
     public Object get(int index) {

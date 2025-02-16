@@ -11,6 +11,7 @@ import com.oracle.truffle.api.bytecode.ConstantOperand;
 import com.oracle.truffle.api.bytecode.GenerateBytecode;
 import com.oracle.truffle.api.bytecode.LocalAccessor;
 import com.oracle.truffle.api.bytecode.Operation;
+import com.oracle.truffle.api.bytecode.Variadic;
 import com.oracle.truffle.api.dsl.Bind;
 import com.oracle.truffle.api.dsl.Fallback;
 import com.oracle.truffle.api.dsl.Specialization;
@@ -752,6 +753,14 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
         @Specialization
         static Object fallback() {
             return new LoxArray();
+        }
+    }
+
+    @Operation
+    public static final class LoxArrayLiterals {
+        @Specialization
+        static Object doDefault(@Variadic Object[] elements) {
+            return new LoxArray(elements);
         }
     }
 
