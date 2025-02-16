@@ -20,7 +20,9 @@ statement:
 	| ifStmt
 	| whileStmt
 	| printStmt
-	| block;
+	| block
+	| breakStmt
+	| continueStmt;
 
 forStmt:
 	'for' '(' (varDecl | exprStmt | ';') condition = expression? ';' increment = expression? ')'
@@ -38,6 +40,8 @@ varDecl:
 
 exprStmt: expression ';';
 printStmt: 'print' expression ';';
+breakStmt: 'break' ';';
+continueStmt: 'continue' ';';
 
 block: '{' declaration* '}';
 

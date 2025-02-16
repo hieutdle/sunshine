@@ -20,6 +20,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 import com.oracle.truffle.api.RootCallTarget;
+import com.oracle.truffle.api.bytecode.BytecodeLabel;
 import com.oracle.truffle.api.bytecode.BytecodeLocal;
 import com.oracle.truffle.api.bytecode.BytecodeParser;
 import com.oracle.truffle.api.source.Source;
@@ -28,14 +29,34 @@ import com.oracle.truffle.api.strings.TruffleString;
 import de.hpi.swa.lox.LoxLanguage;
 import de.hpi.swa.lox.bytecode.LoxBytecodeRootNodeGen;
 import de.hpi.swa.lox.error.LoxParseError;
+import de.hpi.swa.lox.parser.LoxParser.ArrAssignmentContext;
+import de.hpi.swa.lox.parser.LoxParser.ArrayContext;
+import de.hpi.swa.lox.parser.LoxParser.ArrayExprContext;
+import de.hpi.swa.lox.parser.LoxParser.AssignmentContext;
+import de.hpi.swa.lox.parser.LoxParser.BlockContext;
+import de.hpi.swa.lox.parser.LoxParser.BreakStmtContext;
+import de.hpi.swa.lox.parser.LoxParser.ComparisonContext;
+import de.hpi.swa.lox.parser.LoxParser.ContinueStmtContext;
+import de.hpi.swa.lox.parser.LoxParser.EqualityContext;
+import de.hpi.swa.lox.parser.LoxParser.ExpressionContext;
+import de.hpi.swa.lox.parser.LoxParser.FactorContext;
 import de.hpi.swa.lox.parser.LoxParser.FalseContext;
+import de.hpi.swa.lox.parser.LoxParser.ForStmtContext;
+import de.hpi.swa.lox.parser.LoxParser.IfStmtContext;
+import de.hpi.swa.lox.parser.LoxParser.Logic_andContext;
+import de.hpi.swa.lox.parser.LoxParser.Logic_orContext;
 import de.hpi.swa.lox.parser.LoxParser.NilContext;
+import de.hpi.swa.lox.parser.LoxParser.NumberContext;
 import de.hpi.swa.lox.parser.LoxParser.PrintStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.ProgramContext;
 import de.hpi.swa.lox.parser.LoxParser.StatementContext;
 import de.hpi.swa.lox.parser.LoxParser.StringContext;
+import de.hpi.swa.lox.parser.LoxParser.TermContext;
 import de.hpi.swa.lox.parser.LoxParser.TrueContext;
 import de.hpi.swa.lox.parser.LoxParser.UnaryContext;
+import de.hpi.swa.lox.parser.LoxParser.VarDeclContext;
+import de.hpi.swa.lox.parser.LoxParser.VariableExprContext;
+import de.hpi.swa.lox.parser.LoxParser.WhileStmtContext;
 import de.hpi.swa.lox.runtime.object.Nil;
 
 /**
@@ -46,6 +67,8 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     protected final LoxLanguage language;
     protected final Source source;
     private LexicalScope curScope = null;
+    private BytecodeLabel breakLabel;
+    private BytecodeLabel continueLabel;
 
     private final LoxBytecodeRootNodeGen.Builder b;
 
@@ -259,7 +282,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitNumber(LoxParser.NumberContext ctx) {
+    public Void visitNumber(NumberContext ctx) {
         String literal = ctx.getText();
         if (literal.contains(".")) {
             double number = Double.parseDouble(literal);
@@ -277,7 +300,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitTerm(LoxParser.TermContext ctx) {
+    public Void visitTerm(TermContext ctx) {
         if (ctx.getChildCount() == 1) {
             return super.visitTerm(ctx);
         }
@@ -305,7 +328,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitFactor(LoxParser.FactorContext ctx) {
+    public Void visitFactor(FactorContext ctx) {
         if (ctx.getChildCount() == 1) {
             return super.visitFactor(ctx);
         }
@@ -335,7 +358,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitComparison(LoxParser.ComparisonContext ctx) {
+    public Void visitComparison(ComparisonContext ctx) {
         if (ctx.getChildCount() == 1) {
             return super.visitComparison(ctx);
         }
@@ -383,7 +406,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitEquality(LoxParser.EqualityContext ctx) {
+    public Void visitEquality(EqualityContext ctx) {
         List<String> operations = new ArrayList<>();
 
         for (int i = 1; i < ctx.getChildCount(); i += 2) {
@@ -432,7 +455,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitLogic_or(LoxParser.Logic_orContext ctx) {
+    public Void visitLogic_or(Logic_orContext ctx) {
         if (ctx.getChildCount() == 1) {
             return super.visitLogic_or(ctx);
         }
@@ -458,7 +481,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitLogic_and(LoxParser.Logic_andContext ctx) {
+    public Void visitLogic_and(Logic_andContext ctx) {
         if (ctx.getChildCount() == 1) {
             return super.visitLogic_and(ctx);
         }
@@ -492,7 +515,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitVarDecl(LoxParser.VarDeclContext ctx) {
+    public Void visitVarDecl(VarDeclContext ctx) {
         var localName = ctx.IDENTIFIER().getText();
         curScope.define(localName, ctx);
         if (ctx.expression() != null) {
@@ -504,13 +527,13 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitVariableExpr(LoxParser.VariableExprContext ctx) {
+    public Void visitVariableExpr(VariableExprContext ctx) {
         curScope.load(ctx.getText());
         return null;
     }
 
     @Override
-    public Void visitAssignment(LoxParser.AssignmentContext ctx) {
+    public Void visitAssignment(AssignmentContext ctx) {
         final boolean isAssignment = ctx.IDENTIFIER() != null;
         String text = null;
         if (isAssignment) {
@@ -528,7 +551,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitBlock(LoxParser.BlockContext ctx) {
+    public Void visitBlock(BlockContext ctx) {
         b.beginBlock();
         curScope = new LexicalScope(curScope);
         super.visitBlock(ctx);
@@ -538,7 +561,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitIfStmt(LoxParser.IfStmtContext ctx) {
+    public Void visitIfStmt(IfStmtContext ctx) {
         if (ctx.alt == null) {
             b.beginIfThen();
             beginAttribution(ctx.condition);
@@ -563,21 +586,40 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitWhileStmt(LoxParser.WhileStmtContext ctx) {
+    public Void visitWhileStmt(WhileStmtContext ctx) {
+        BytecodeLabel oldBreak = breakLabel;
+        BytecodeLabel oldContinue = continueLabel;
+        b.beginBlock();
+        breakLabel = b.createLabel();
+        continueLabel = b.createLabel();
+        b.emitLabel(continueLabel);
         b.beginWhile();
+
         beginAttribution(ctx.condition);
         b.beginLoxIsTruthy();
         visit(ctx.condition);
         b.endLoxIsTruthy();
         endAttribution();
+
         visit(ctx.body);
+
         b.endWhile();
+        b.emitLabel(breakLabel);
+
+        b.endBlock();
+        breakLabel = oldBreak;
+        continueLabel = oldContinue;
+
         return null;
     }
 
     @Override
-    public Void visitForStmt(LoxParser.ForStmtContext ctx) {
+    public Void visitForStmt(ForStmtContext ctx) {
+        BytecodeLabel oldBreak = breakLabel;
+        BytecodeLabel oldContinue = continueLabel;
+
         curScope = new LexicalScope(curScope);
+
         b.beginBlock();
         ParserRuleContext init = ctx.varDecl();
         if (init == null) {
@@ -586,6 +628,11 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         if (init != null) {
             visit(init);
         }
+
+        breakLabel = b.createLabel();
+        continueLabel = b.createLabel();
+        b.emitLabel(continueLabel);
+
         b.beginWhile();
         beginAttribution(ctx.condition);
         b.beginLoxIsTruthy();
@@ -597,20 +644,25 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         visit(ctx.increment);
         b.endBlock();
         b.endWhile();
+
         curScope = curScope.parent;
+        b.emitLabel(breakLabel);
         b.endBlock();
+        breakLabel = oldBreak;
+        continueLabel = oldContinue;
+
         return null;
     }
 
     @Override
-    public Void visitArray(LoxParser.ArrayContext ctx) {
+    public Void visitArray(ArrayContext ctx) {
         List<LoxParser.ExpressionContext> elements = ctx.expression();
 
         if (elements.isEmpty()) {
             b.emitLoxNewArray();
         } else {
             b.beginLoxArrayLiterals();
-            for (LoxParser.ExpressionContext expr : elements) {
+            for (ExpressionContext expr : elements) {
                 visit(expr);
             }
             b.endLoxArrayLiterals();
@@ -620,7 +672,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitArrayExpr(LoxParser.ArrayExprContext ctx) {
+    public Void visitArrayExpr(ArrayExprContext ctx) {
         b.beginLoxReadArray();
         visit(ctx.left);
         visit(ctx.index);
@@ -629,7 +681,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitArrAssignment(LoxParser.ArrAssignmentContext ctx) {
+    public Void visitArrAssignment(ArrAssignmentContext ctx) {
         if (ctx.other != null) {
             return visit(ctx.other);
         }
@@ -638,6 +690,18 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         visit(ctx.index);
         visit(ctx.right);
         b.endLoxWriteArray();
+        return null;
+    }
+
+    @Override
+    public Void visitBreakStmt(BreakStmtContext ctx) {
+        b.emitBranch(breakLabel);
+        return null;
+    }
+
+    @Override
+    public Void visitContinueStmt(ContinueStmtContext ctx) {
+        b.emitBranch(continueLabel);
         return null;
     }
 
