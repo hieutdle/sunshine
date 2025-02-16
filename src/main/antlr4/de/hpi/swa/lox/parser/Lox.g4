@@ -24,7 +24,7 @@ logic_and: equality ( 'and' equality)*;
 equality: comparison ( ( '!=' | '==') comparison)*;
 comparison: term ( ( '>' | '>=' | '<' | '<=') term)*;
 term: factor ( ( '-' | '+') factor)*;
-factor: unary ( ( '/' | '*') unary)*;
+factor: unary ( ( '/' | '*' | '%') unary)*;
 
 unary: ( '!' | '-') unary | primary;
 

@@ -41,13 +41,13 @@
 */
 package de.hpi.swa.lox.test;
 
-import static org.junit.Assert.assertEquals;
-
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.PolyglotException;
 import org.junit.After;
+import static org.junit.Assert.assertEquals;
 import org.junit.Before;
 
 public abstract class AbstractLoxTest {
@@ -58,7 +58,7 @@ public abstract class AbstractLoxTest {
     protected Context context;
 
     @Before
-    public void initContext()  {
+    public void initContext() {
         context = Context.newBuilder().build();
     }
 
@@ -68,7 +68,7 @@ public abstract class AbstractLoxTest {
     }
 
     @Before
-    public void caputureOut()  {
+    public void caputureOut() {
         outContent = new ByteArrayOutputStream();
         originalOut = System.out;
         System.setOut(new PrintStream(outContent));
@@ -95,7 +95,8 @@ public abstract class AbstractLoxTest {
         }
     }
 
-    protected void runAndExpect(String testCaseName, String command, String expectedOutput)  {
+    protected void runAndExpect(String testCaseName, String command, String expectedOutput) {
+        outContent.reset();
         run(command);
         String actualOutput = normalize(outContent.toString());
         assertEquals(testCaseName, expectedOutput, actualOutput);

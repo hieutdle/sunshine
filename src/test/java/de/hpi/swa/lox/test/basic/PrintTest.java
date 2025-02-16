@@ -39,9 +39,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package de.hpi.swa.lox.test;
+package de.hpi.swa.lox.test.basic;
 
 import org.junit.Test;
+
+import de.hpi.swa.lox.test.AbstractLoxTest;
 
 public class PrintTest extends AbstractLoxTest {
     @Test
