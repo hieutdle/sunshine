@@ -22,7 +22,12 @@ statement:
 	| printStmt
 	| block
 	| breakStmt
-	| continueStmt;
+	| continueStmt
+	| postfixConditionStmt;
+
+postfixConditionStmt:
+	then = statementBody keyword = ('if' | 'unless') '(' condition = expression ')' ';';
+statementBody: expression | 'print' exp = expression;
 
 forStmt:
 	'for' '(' (varDecl | exprStmt | ';') condition = expression? ';' increment = expression? ')'
@@ -82,6 +87,8 @@ true: 'true';
 false: 'false';
 number: NUMBER;
 
+IF: 'if';
+UNLESS: 'unless';
 NUMBER: DIGIT+ ( '.' DIGIT+)?;
 STRING: '"' (~["\\])* '"';
 IDENTIFIER: ALPHA ( ALPHA | DIGIT)*;

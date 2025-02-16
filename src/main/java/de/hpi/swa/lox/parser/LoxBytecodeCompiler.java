@@ -47,6 +47,7 @@ import de.hpi.swa.lox.parser.LoxParser.Logic_andContext;
 import de.hpi.swa.lox.parser.LoxParser.Logic_orContext;
 import de.hpi.swa.lox.parser.LoxParser.NilContext;
 import de.hpi.swa.lox.parser.LoxParser.NumberContext;
+import de.hpi.swa.lox.parser.LoxParser.PostfixConditionStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.PrintStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.ProgramContext;
 import de.hpi.swa.lox.parser.LoxParser.StatementContext;
@@ -262,7 +263,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         for (int i = 0; i < parts.size(); i++) {
             Object part = parts.get(i);
             switch (part) {
-                case LoxParser.ExpressionContext expressionContext -> visitExpression(expressionContext);
+                case ExpressionContext expressionContext -> visitExpression(expressionContext);
                 case String string -> {
                     // Convert to TruffleString before emitting
                     var ts = TruffleString.fromJavaStringUncached(string.substring(1, ctx.getText().length() - 1),
@@ -702,6 +703,40 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     @Override
     public Void visitContinueStmt(ContinueStmtContext ctx) {
         b.emitBranch(continueLabel);
+        return null;
+    }
+
+    @Override
+    public Void visitPostfixConditionStmt(PostfixConditionStmtContext ctx) {
+        boolean isUnless = ctx.keyword.getText().equals("unless");
+
+        b.beginIfThen();
+        beginAttribution(ctx.condition);
+
+        if (isUnless) {
+            b.beginLoxNot();
+            b.beginLoxIsTruthy();
+            visit(ctx.condition);
+            b.endLoxIsTruthy();
+            b.endLoxNot();
+        } else {
+            b.beginLoxIsTruthy();
+            visit(ctx.condition);
+            b.endLoxIsTruthy();
+        }
+
+        endAttribution();
+
+        String literals = ctx.then.getText();
+        if (literals.contains("print")) {
+            b.beginLoxPrint();
+            visit(ctx.then.exp);
+            b.endLoxPrint();
+        } else {
+            visit(ctx.then);
+        }
+
+        b.endIfThen();
         return null;
     }
 
