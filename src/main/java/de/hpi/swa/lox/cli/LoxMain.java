@@ -82,12 +82,34 @@ public class LoxMain extends AbstractLanguageLauncher {
     }
 
     private void startEvalLoop(Context context) {
+        List<String> statementKeywords = List.of("var", "fun", "class", "for", "if", "while", "return", "print");
         while (true) {
             System.out.print("> ");
             String line = System.console().readLine();
             if (line == null) {
                 break;
             }
+            line = line.trim();
+            if (line.isEmpty()) {
+                continue;
+            }
+
+            boolean isStatement = false;
+            for (String keyword : statementKeywords) {
+                if (line.startsWith(keyword + " ") || line.startsWith(keyword + "(") || line.equals(keyword)) {
+                    isStatement = true;
+                    break;
+                }
+            }
+
+            if (!isStatement) {
+                if (line.endsWith(";")) {
+                    line = "print " + line;
+                } else {
+                    line = "print " + line + ";";
+                }
+            }
+
             try {
                 context.eval("lox", line);
             } catch (Exception e) {
