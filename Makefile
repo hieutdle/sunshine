@@ -12,6 +12,9 @@ run:
 clean:
 	@./mvnw clean
 
+install:
+	@./mvnw clean install -U
+
 native:
 	@./mvnw -Pnative package
 

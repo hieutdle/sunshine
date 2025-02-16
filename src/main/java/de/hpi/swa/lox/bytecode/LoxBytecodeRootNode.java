@@ -98,6 +98,55 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
             return TruffleString.fromJavaStringUncached(concatenated, TruffleString.Encoding.UTF_8);
         }
 
+        // Handle number + string or string + number cases
+        @Specialization
+        @CompilerDirectives.TruffleBoundary
+        static TruffleString doStringAndNumber(TruffleString left, long right) {
+            return TruffleString.fromJavaStringUncached(
+                    left.toJavaStringUncached() + right,
+                    TruffleString.Encoding.UTF_8);
+        }
+
+        @Specialization
+        @CompilerDirectives.TruffleBoundary
+        static TruffleString doStringAndNumber(TruffleString left, double right) {
+            return TruffleString.fromJavaStringUncached(
+                    left.toJavaStringUncached() + right,
+                    TruffleString.Encoding.UTF_8);
+        }
+
+        @Specialization
+        @CompilerDirectives.TruffleBoundary
+        static TruffleString doStringAndBigInteger(TruffleString left, BigInteger right) {
+            return TruffleString.fromJavaStringUncached(
+                    left.toJavaStringUncached() + right.toString(),
+                    TruffleString.Encoding.UTF_8);
+        }
+
+        @Specialization
+        @CompilerDirectives.TruffleBoundary
+        static TruffleString doNumberAndString(long left, TruffleString right) {
+            return TruffleString.fromJavaStringUncached(
+                    left + right.toJavaStringUncached(),
+                    TruffleString.Encoding.UTF_8);
+        }
+
+        @Specialization
+        @CompilerDirectives.TruffleBoundary
+        static TruffleString doNumberAndString(double left, TruffleString right) {
+            return TruffleString.fromJavaStringUncached(
+                    left + right.toJavaStringUncached(),
+                    TruffleString.Encoding.UTF_8);
+        }
+
+        @Specialization
+        @CompilerDirectives.TruffleBoundary
+        static TruffleString doBigIntegerAndString(BigInteger left, TruffleString right) {
+            return TruffleString.fromJavaStringUncached(
+                    left.toString() + right.toJavaStringUncached(),
+                    TruffleString.Encoding.UTF_8);
+        }
+
         @Fallback
         @CompilerDirectives.TruffleBoundary
         static Object typeError(Object left, Object right, @Bind Node node) {

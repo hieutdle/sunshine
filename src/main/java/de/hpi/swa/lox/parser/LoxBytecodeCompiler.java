@@ -3,6 +3,8 @@ package de.hpi.swa.lox.parser;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStreams;
@@ -182,89 +184,71 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     @Override
     public Void visitString(StringContext ctx) {
         List<Object> parts = new ArrayList<>();
-        String stringContent = ctx.getText().substring(1, ctx.getText().length() - 1); // Remove surrounding quotes
 
-        // Split the string content into static parts and interpolated expressions
-        // This is a simplified parsing approach; actual implementation should use the parsed AST from the grammar
-        int start = 0;
-        while (true) {
-            int interpolationStart = stringContent.indexOf("${", start);
-            if (interpolationStart == -1) {
-                // Add the remaining static part
-                String fragment = stringContent.substring(start);
-                if (!fragment.isEmpty()) {
-                    parts.add(unescapeString(fragment));
-                }
-                break;
+        // Remove surrounding quotes
+        String stringContent = ctx.getText().substring(1, ctx.getText().length() - 1);
+
+        // Regex to match ${...} expressions
+        Pattern pattern = Pattern.compile("(\\$\\{(.*?)\\})");
+        Matcher matcher = pattern.matcher(stringContent);
+
+        int lastIndex = 0;
+        while (matcher.find()) {
+            // Add the text before the expression as a string constant
+            if (matcher.start() > lastIndex) {
+                String literalPart = stringContent.substring(lastIndex, matcher.start());
+                literalPart = "\"" + literalPart + "\"";
+                LoxLexer lexer = new LoxLexer(CharStreams.fromString(literalPart));
+                LoxParser parser = new LoxParser(new CommonTokenStream(lexer));
+                LoxParser.ExpressionContext expr = parser.expression();
+                parts.add(expr);
             }
 
-            // Add the static part before the interpolation
-            String fragment = stringContent.substring(start, interpolationStart);
-            if (!fragment.isEmpty()) {
-                parts.add(unescapeString(fragment));
-            }
-
-            int interpolationEnd = stringContent.indexOf('}', interpolationStart + 2);
-            if (interpolationEnd == -1) {
-                // Unterminated interpolation, handle error if needed
-                break;
-            }
-
-            // Extract the expression inside ${...}
-            String expressionStr = stringContent.substring(interpolationStart + 2, interpolationEnd);
-            // Parse the expression (this requires integrating with the lexer/parser)
-            // For simplicity, assume the expression is parsed into an ExpressionContext
-            // Here, we manually parse the expression (this part would typically be handled by the parser)
+            // Convert the expression inside ${} to an AST node (ExpressionContext)
+            String expressionStr = matcher.group(2).trim();
             LoxLexer lexer = new LoxLexer(CharStreams.fromString(expressionStr));
             LoxParser parser = new LoxParser(new CommonTokenStream(lexer));
             LoxParser.ExpressionContext expr = parser.expression();
-            parts.add(expr);
+            parts.add(expr); // Store as AST node instead of raw text
 
-            start = interpolationEnd + 1;
+            lastIndex = matcher.end();
         }
 
-        if (parts.isEmpty()) {
-            b.emitLoadConstant(Nil.INSTANCE);
-            return null;
+        // Add remaining text after last match, wrapped in quotes
+        if (lastIndex < stringContent.length()) {
+            String literalPart = stringContent.substring(lastIndex);
+            parts.add("\"" + literalPart + "\"");
         }
 
-        // Process the first part
-        processPart(parts.get(0));
+        // Determine how many concatenations are needed
+        int concatCount = parts.size() - 1;
 
-        // Process remaining parts and concatenate
-        for (int i = 1; i < parts.size(); i++) {
-            processPart(parts.get(i));
+        // Begin additions BEFORE emitting constants
+        for (int i = 0; i < concatCount; i++) {
             b.beginLoxAdd();
-            b.endLoxAdd();
         }
 
-        return null;
-    }
-
-    private void processPart(Object part) {
-        switch (part) {
-            case String fragment -> {
-                TruffleString ts = TruffleString.fromJavaStringUncached(fragment, TruffleString.Encoding.UTF_8);
-                b.emitLoadConstant(ts);
+        // Emit all parts
+        for (int i = 0; i < parts.size(); i++) {
+            Object part = parts.get(i);
+            switch (part) {
+                case LoxParser.ExpressionContext expressionContext -> visitExpression(expressionContext);
+                case String string -> {
+                    // Convert to TruffleString before emitting
+                    var ts = TruffleString.fromJavaStringUncached(string.substring(1, ctx.getText().length() - 1),
+                            TruffleString.Encoding.UTF_8);
+                    b.emitLoadConstant(ts);
+                }
+                default -> {
+                }
             }
-            case LoxParser.ExpressionContext expr -> {
-                visit(expr); // Generate code to evaluate the expression
-                // Convert the result to a string by concatenating with an empty string
-                b.emitLoadConstant(Nil.INSTANCE);
-                b.beginLoxAdd();
+
+            if (i > 0) {
                 b.endLoxAdd();
             }
-            default -> {
-            }
         }
-    }
 
-    private String unescapeString(String text) {
-        // Implement proper unescaping for escape sequences like \n, \t, \", etc.
-        return text.replace("\\n", "\n")
-                .replace("\\t", "\t")
-                .replace("\\\"", "\"")
-                .replace("\\\\", "\\");
+        return super.visitString(ctx);
     }
 
     @Override
