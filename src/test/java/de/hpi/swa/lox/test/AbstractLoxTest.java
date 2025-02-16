@@ -46,14 +46,18 @@ import java.io.PrintStream;
 
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.PolyglotException;
+import static org.hamcrest.CoreMatchers.containsString;
 import org.junit.After;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import org.junit.Before;
 
 public abstract class AbstractLoxTest {
 
     protected ByteArrayOutputStream outContent;
     protected PrintStream originalOut;
+    protected ByteArrayOutputStream errContent;
+    protected PrintStream originalErr;
 
     protected Context context;
 
@@ -72,11 +76,15 @@ public abstract class AbstractLoxTest {
         outContent = new ByteArrayOutputStream();
         originalOut = System.out;
         System.setOut(new PrintStream(outContent));
+        errContent = new ByteArrayOutputStream();
+        originalErr = System.err;
+        System.setErr(new PrintStream(errContent));
     }
 
     @After
     public void restoreOut() {
         System.setOut(originalOut);
+        System.setErr(originalErr);
     }
 
     protected String normalize(String s) {
@@ -88,7 +96,7 @@ public abstract class AbstractLoxTest {
             context.eval("lox", command);
         } catch (PolyglotException ex) {
             if (!ex.isInternalError()) {
-                System.out.println(ex.getMessage());
+                System.err.println(ex.getMessage());
             } else {
                 throw ex;
             }
@@ -97,9 +105,20 @@ public abstract class AbstractLoxTest {
 
     protected void runAndExpect(String testCaseName, String command, String expectedOutput) {
         outContent.reset();
+        errContent.reset();
         run(command);
         String actualOutput = normalize(outContent.toString());
         assertEquals(testCaseName, expectedOutput, actualOutput);
+    }
+
+    @SuppressWarnings("deprecation")
+    protected void runAndExpectError(String testCaseName,
+            String command, String expectedErrorOutput) {
+        outContent.reset();
+        errContent.reset();
+        run(command);
+        assertThat(normalize(errContent.toString()),
+                containsString(expectedErrorOutput));
     }
 
 }

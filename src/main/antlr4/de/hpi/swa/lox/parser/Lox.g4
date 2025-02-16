@@ -12,13 +12,23 @@ grammar Lox;
 
 program: declaration* EOF;
 
-declaration: statement;
+declaration: varDecl | statement;
 
-statement: printStmt;
+statement: exprStmt | printStmt | block;
 
+varDecl:
+	'var' IDENTIFIER ('=' expression)? ';'
+	| IDENTIFIER ':=' expression ';';
+
+exprStmt: expression ';';
 printStmt: 'print' expression ';';
 
-expression: logic_or;
+block: '{' declaration* '}';
+
+expression: assignment;
+
+assignment: IDENTIFIER '=' assignment | logic_or;
+
 logic_or: logic_and ( 'or' logic_and)*;
 logic_and: equality ( 'and' equality)*;
 equality: comparison ( ( '!=' | '==') comparison)*;
@@ -34,7 +44,10 @@ primary:
 	| true
 	| false
 	| nil
+	| variableExpr
 	| '(' expression ')';
+
+variableExpr: IDENTIFIER;
 
 string: STRING;
 nil: 'nil';

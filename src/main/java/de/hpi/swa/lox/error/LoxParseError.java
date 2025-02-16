@@ -1,5 +1,9 @@
 package de.hpi.swa.lox.error;
 
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.ParseTree;
+
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.exception.AbstractTruffleException;
 import com.oracle.truffle.api.interop.ExceptionType;
@@ -43,5 +47,29 @@ public class LoxParseError extends AbstractTruffleException {
             throw UnsupportedMessageException.create();
         }
         return source.createSection(line, column, length);
+    }
+
+    public static LoxParseError build(Source source, ParseTree tree, String message) {
+        String s = message;
+        var line = 0;
+        var column = 0;
+        var length = 0;
+        if (tree.getPayload() instanceof ParserRuleContext context) {
+            Token startToken = context.getStart();
+            Token stopToken = context.getStop();
+            line = startToken.getLine();
+            column = startToken.getCharPositionInLine();
+            length = stopToken.getStopIndex() - startToken.getStartIndex();
+            s = formatMessage(message, formatLocation(line, column));
+        }
+        return new LoxParseError(source, line, column, length, s);
+    }
+
+    public static String formatMessage(String message, String location) {
+        return String.format("%s at %s", message, location);
+    }
+
+    public static String formatLocation(int line, int column) {
+        return String.format("line %d, column %d", line, column);
     }
 }

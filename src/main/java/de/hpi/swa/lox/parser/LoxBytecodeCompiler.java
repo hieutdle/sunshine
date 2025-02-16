@@ -2,7 +2,10 @@ package de.hpi.swa.lox.parser;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Stack;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,6 +20,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 import com.oracle.truffle.api.RootCallTarget;
+import com.oracle.truffle.api.bytecode.BytecodeLocal;
 import com.oracle.truffle.api.bytecode.BytecodeParser;
 import com.oracle.truffle.api.source.Source;
 import com.oracle.truffle.api.strings.TruffleString;
@@ -41,6 +45,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
 
     protected final LoxLanguage language;
     protected final Source source;
+    private LexicalScope curScope = null;
 
     private final LoxBytecodeRootNodeGen.Builder b;
 
@@ -63,6 +68,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         };
         var config = LoxBytecodeRootNodeGen.newConfigBuilder().build();
         var nodes = LoxBytecodeRootNodeGen.create(language, config, bytecodeParser).getNodes();
+        nodes.getFirst().dump();
         return nodes.get(0).getCallTarget();
     }
 
@@ -142,6 +148,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         this.language = language;
         this.source = source;
         this.b = builder;
+        this.curScope = new LexicalScope();
     }
 
     @Override
@@ -482,6 +489,120 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         super.visitStatement(ctx);
         endAttribution();
         return null;
+    }
+
+    @Override
+    public Void visitVarDecl(LoxParser.VarDeclContext ctx) {
+        var localName = ctx.IDENTIFIER().getText();
+        curScope.define(localName, ctx);
+        if (ctx.expression() != null) {
+            curScope.beginStore(localName);
+            visit(ctx.expression());
+            curScope.endStore();
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitVariableExpr(LoxParser.VariableExprContext ctx) {
+        curScope.load(ctx.getText());
+        return null;
+    }
+
+    @Override
+    public Void visitAssignment(LoxParser.AssignmentContext ctx) {
+        final boolean isAssignment = ctx.IDENTIFIER() != null;
+        String text = null;
+        if (isAssignment) {
+            b.beginBlock(); // for grouping the the storing an the loading together
+            text = ctx.IDENTIFIER().getText();
+            curScope.beginStore(text);
+        }
+        super.visitAssignment(ctx);
+        if (isAssignment) {
+            curScope.endStore();
+            curScope.load(text); // for the value of the assignment
+            b.endBlock();
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitBlock(LoxParser.BlockContext ctx) {
+        b.beginBlock();
+        curScope = new LexicalScope(curScope);
+        super.visitBlock(ctx);
+        curScope = curScope.parent;
+        b.endBlock();
+        return null;
+    }
+
+    private class LexicalScope {
+        final LexicalScope parent;
+        final Map<String, BytecodeLocal> locals;
+        private Stack<Object> currentStore = new Stack<>();
+
+        LexicalScope(LexicalScope parent) {
+            this.parent = parent;
+            locals = new HashMap<>();
+        }
+
+        LexicalScope() {
+            this(null);
+        }
+
+        public void define(String localName, ParseTree ctx) {
+            if (parent != null) {
+                if (locals.get(localName) != null) {
+                    throw LoxParseError.build(source, ctx, "Variable " + localName + " already defined");
+                }
+                var local = b.createLocal(localName, null);
+                locals.put(localName, local);
+            } else {
+                b.emitLoxDefineGlobalVariable(localName);
+            }
+        }
+
+        private BytecodeLocal lookupName(String name) {
+            var scope = this;
+            BytecodeLocal variable;
+            do {
+                variable = scope.locals.get(name);
+                scope = scope.parent;
+            } while (variable == null && scope != null);
+            return variable;
+        }
+
+        public void beginStore(String name) {
+            var variable = lookupName(name);
+            this.currentStore.push(variable);
+            if (variable != null) {
+                b.beginStoreLocal(variable);
+            } else {
+                b.beginLoxWriteGlobalVariable(name);
+            }
+        }
+
+        public void endStore() {
+            var currentStore = this.currentStore.pop();
+            if (currentStore != null) {
+                b.endStoreLocal();
+            } else {
+                b.endLoxWriteGlobalVariable();
+            }
+        }
+
+        public void load(String text) {
+            var variable = lookupName(text);
+            if (variable != null) {
+                b.beginBlock();
+                b.emitLoxCheckLocalDefined(variable);
+                b.emitLoadLocal(variable);
+                b.endBlock();
+            } else {
+                b.emitLoxReadGlobalVariable(text);
+            }
+        }
     }
 
 }

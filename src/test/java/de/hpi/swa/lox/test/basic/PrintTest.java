@@ -58,6 +58,12 @@ public class PrintTest extends AbstractLoxTest {
 
     @Test
     public void printNil() {
-        runAndExpect("printTestOutput", "print nil;", "nil\n");
+        runAndExpect("printTestOutputNil", "print nil;", "nil\n");
     }
+
+    @Test
+    public void printTest() {
+        runAndExpect("printTestOutputDebug", "print 2 * (3 + 4);", "14\n");
+    }
+
 }
