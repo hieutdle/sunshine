@@ -333,31 +333,46 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
             return super.visitComparison(ctx);
         }
 
-        for (int i = ctx.getChildCount() - 2; i >= 0; i -= 2) {
-            var operation = ctx.getChild(i).getText();
+        List<LoxParser.TermContext> terms = ctx.term();
+        int countOp = terms.size() - 1;
+
+        if (countOp == 0) {
+            visitTerm(terms.get(0));
+            return null;
+        }
+
+        // Maintain a stack of AND blocks
+        for (int i = 0; i < countOp - 1; i++) {
+            b.beginLoxAnd();
+        }
+
+        for (int i = 0; i < countOp; i++) {
+            var operation = ctx.getChild(i * 2 + 1).getText();
             switch (operation) {
                 case ">" -> b.beginLoxGreaterThan();
                 case ">=" -> b.beginLoxGreaterEqual();
                 case "<" -> b.beginLoxLessThan();
                 case "<=" -> b.beginLoxLessEqual();
             }
-        }
 
-        visitTerm(ctx.term(0));
+            // Emit the left-hand side operand
+            visitTerm(terms.get(i));
+            // Emit the right-hand side operand
+            visitTerm(terms.get(i + 1));
 
-        for (int i = 1; i < ctx.getChildCount() - 1; i += 2) {
-            visitTerm(ctx.term((i + 1) / 2));
-            var operation = ctx.getChild(i).getText();
             switch (operation) {
                 case ">" -> b.endLoxGreaterThan();
                 case ">=" -> b.endLoxGreaterEqual();
                 case "<" -> b.endLoxLessThan();
                 case "<=" -> b.endLoxLessEqual();
             }
+
+            if (i >= 1) {
+                b.endLoxAnd();
+            }
         }
 
         return null;
-
     }
 
     @Override
