@@ -5,6 +5,7 @@ import java.math.BigInteger;
 import java.util.Objects;
 
 import com.oracle.truffle.api.CompilerDirectives;
+import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.bytecode.BytecodeNode;
 import com.oracle.truffle.api.bytecode.BytecodeRootNode;
 import com.oracle.truffle.api.bytecode.ConstantOperand;
@@ -13,10 +14,13 @@ import com.oracle.truffle.api.bytecode.LocalAccessor;
 import com.oracle.truffle.api.bytecode.Operation;
 import com.oracle.truffle.api.bytecode.Variadic;
 import com.oracle.truffle.api.dsl.Bind;
+import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.Fallback;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.frame.FrameDescriptor;
 import com.oracle.truffle.api.frame.VirtualFrame;
+import com.oracle.truffle.api.nodes.DirectCallNode;
+import com.oracle.truffle.api.nodes.IndirectCallNode;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.strings.TruffleString;
 
@@ -26,6 +30,7 @@ import de.hpi.swa.lox.nodes.LoxRootNode;
 import de.hpi.swa.lox.runtime.LoxContext;
 import de.hpi.swa.lox.runtime.object.GlobalObject;
 import de.hpi.swa.lox.runtime.object.LoxArray;
+import de.hpi.swa.lox.runtime.object.LoxFunction;
 import de.hpi.swa.lox.runtime.object.Nil;
 
 @GenerateBytecode(//
@@ -796,4 +801,52 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
         }
     }
 
+    @Operation
+    @ConstantOperand(type = int.class)
+    public static final class LoxLoadArgument {
+        @Specialization(guards = "index <= arguments.length")
+        static Object doDefault(VirtualFrame frame, int index,
+                @Bind("frame.getArguments()") Object[] arguments) {
+            return arguments[index + 1];
+        }
+
+        @Fallback
+        static Object doLoadOutOfBounds(int index) {
+            /* Use the default null value. */
+            return Nil.INSTANCE;
+        }
+    }
+
+    @Operation
+    @ConstantOperand(type = String.class)
+    @ConstantOperand(type = RootCallTarget.class)
+    public static final class LoxCreateFunction {
+        @Specialization
+        static LoxFunction doDefault(VirtualFrame frame, String name, RootCallTarget callTarget) {
+            return new LoxFunction(name, callTarget);
+        }
+    }
+
+    @Operation
+    public static final class LoxCall {
+        @Specialization(limit = "3", //
+                guards = "function.getCallTarget() == cachedTarget")
+        protected static Object doDirect(LoxFunction function, @Variadic Object[] arguments,
+                @Cached("function.getCallTarget()") RootCallTarget cachedTarget,
+                @Cached("create(cachedTarget)") DirectCallNode directCallNode) {
+            return directCallNode.call(function, function.createArguments(arguments));
+        }
+
+        @Specialization(replaces = "doDirect")
+        static Object doIndirect(LoxFunction function, @Variadic Object[] arguments,
+                @Cached IndirectCallNode callNode) {
+            return callNode.call(function.getCallTarget(), function.createArguments(arguments));
+        }
+
+        @CompilerDirectives.TruffleBoundary
+        @Specialization
+        static Object doDefault(Object obj, @Variadic Object[] arguments, @Bind Node node) {
+            throw new LoxRuntimeError("cannot call " + obj, node);
+        }
+    }
 }

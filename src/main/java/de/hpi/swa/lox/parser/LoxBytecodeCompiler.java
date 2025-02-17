@@ -29,12 +29,14 @@ import com.oracle.truffle.api.strings.TruffleString;
 import de.hpi.swa.lox.LoxLanguage;
 import de.hpi.swa.lox.bytecode.LoxBytecodeRootNodeGen;
 import de.hpi.swa.lox.error.LoxParseError;
+import de.hpi.swa.lox.nodes.LoxRootNode;
 import de.hpi.swa.lox.parser.LoxParser.ArrAssignmentContext;
 import de.hpi.swa.lox.parser.LoxParser.ArrayContext;
 import de.hpi.swa.lox.parser.LoxParser.ArrayExprContext;
 import de.hpi.swa.lox.parser.LoxParser.AssignmentContext;
 import de.hpi.swa.lox.parser.LoxParser.BlockContext;
 import de.hpi.swa.lox.parser.LoxParser.BreakStmtContext;
+import de.hpi.swa.lox.parser.LoxParser.CallContext;
 import de.hpi.swa.lox.parser.LoxParser.ComparisonContext;
 import de.hpi.swa.lox.parser.LoxParser.ContinueStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.EqualityContext;
@@ -44,6 +46,7 @@ import de.hpi.swa.lox.parser.LoxParser.FalseContext;
 import de.hpi.swa.lox.parser.LoxParser.ForInStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.ForOfStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.ForStmtContext;
+import de.hpi.swa.lox.parser.LoxParser.FunDeclContext;
 import de.hpi.swa.lox.parser.LoxParser.IfStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.Logic_andContext;
 import de.hpi.swa.lox.parser.LoxParser.Logic_orContext;
@@ -52,6 +55,7 @@ import de.hpi.swa.lox.parser.LoxParser.NumberContext;
 import de.hpi.swa.lox.parser.LoxParser.PostfixConditionStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.PrintStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.ProgramContext;
+import de.hpi.swa.lox.parser.LoxParser.ReturnStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.StatementContext;
 import de.hpi.swa.lox.parser.LoxParser.StringContext;
 import de.hpi.swa.lox.parser.LoxParser.TermContext;
@@ -452,7 +456,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
                 case "-" -> b.endLoxNeg();
             }
         } else {
-            visitPrimary(ctx.primary());
+            visitCall(ctx.call());
         }
         return null;
     }
@@ -847,6 +851,92 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         curScope = curScope.parent;
 
         return null;
+    }
+
+    @Override
+    public Void visitFunDecl(FunDeclContext ctx) {
+        LoxParser.FunctionContext function = ctx.function();
+        String name = function.IDENTIFIER().getText();
+        // Define the function in the current scope but do NOT execute its body yet.
+        curScope.define(name, ctx);
+        // Begin the root node for this function declaration
+        b.beginRoot();
+        b.beginBlock();
+        // Handle function parameters (if any)
+        List<TerminalNode> parameters = enterFunction(function);
+        for (int i = 0; i < parameters.size(); i++) {
+            var param = parameters.get(i);
+            var paramName = param.getText();
+            curScope.define(paramName, ctx);
+            curScope.beginStore(paramName);
+            b.emitLoxLoadArgument(i); // Load function argument
+            curScope.endStore();
+        }
+        b.beginBlock(); // Start the block for the function body
+        // Visit the function's body, but only store it as part of the function definition, not executing it
+        visit(ctx.function().block()); // This visits the function body without executing it immediately
+        exitFunction(); // Exit the function context
+        b.endBlock(); // End the block for the function body
+        b.endBlock(); // End the block for the function definition
+        // Return a Nil value since there's no immediate return in function declaration
+        b.beginReturn();
+        b.emitLoadConstant(Nil.INSTANCE);
+        b.endReturn();
+        // Finalize the function declaration, storing the function in the global or local scope
+        LoxRootNode node = b.endRoot();
+        curScope.beginStore(name); // Store the function's reference
+        b.emitLoxCreateFunction(name, node.getCallTarget()); // Create the function in bytecode
+        curScope.endStore();
+        return null;
+    }
+
+    @Override
+    public Void visitReturnStmt(ReturnStmtContext ctx) {
+        b.beginReturn();
+        if (ctx.expression() != null) {
+            visit(ctx.expression());
+        } else {
+            b.emitLoadConstant(Nil.INSTANCE);
+        }
+        b.endReturn();
+        return null;
+    }
+
+    @Override
+    public Void visitCall(CallContext ctx) {
+        var calls = ctx.callArguments();
+        for (int i = 0; i < calls.size(); i++) {
+            b.beginLoxCall();
+        }
+        super.visit(ctx.primary());
+        for (LoxParser.CallArgumentsContext callArguments : calls) {
+            LoxParser.ArgumentsContext args = callArguments.arguments();
+            if (args != null) {
+                List<LoxParser.ExpressionContext> expressions = args.expression();
+                for (int i = 0; i < expressions.size(); i++) {
+                    visit(expressions.get(i));
+                }
+            }
+            b.endLoxCall();
+        }
+        return null;
+    }
+
+    protected final List<TerminalNode> enterFunction(LoxParser.FunctionContext ctx) {
+        List<TerminalNode> result = new ArrayList<>();
+        curScope = new LexicalScope(curScope);
+        LoxParser.ParametersContext parameters = ctx.parameters();
+        if (parameters != null) {
+            for (int i = 0; i < parameters.IDENTIFIER().size(); i++) {
+                TerminalNode param = parameters.IDENTIFIER(i);
+                result.add(param);
+            }
+        }
+        return result;
+    }
+
+    protected final void exitFunction() {
+        curScope = curScope.parent;
     }
 
     private class LexicalScope {

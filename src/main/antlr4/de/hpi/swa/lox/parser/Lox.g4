@@ -12,7 +12,7 @@ grammar Lox;
 
 program: declaration* EOF;
 
-declaration: varDecl | statement;
+declaration: varDecl | statement | funDecl;
 
 statement:
 	exprStmt
@@ -25,8 +25,10 @@ statement:
 	| continueStmt
 	| postfixConditionStmt
 	| forOfStmt
-	| forInStmt;
+	| forInStmt
+	| returnStmt;
 
+returnStmt: 'return' expression? ';';
 forOfStmt:
 	'for' '(' 'var' each = IDENTIFIER 'of' arr = expression ')' body = statement;
 forInStmt:
@@ -48,6 +50,7 @@ whileStmt:
 varDecl:
 	'var' IDENTIFIER ('=' expression)? ';'
 	| IDENTIFIER ':=' expression ';';
+funDecl: 'fun' function ';'?;
 
 exprStmt: expression ';';
 printStmt: 'print' expression ';';
@@ -70,7 +73,12 @@ comparison: term ( ( '>' | '>=' | '<' | '<=') term)*;
 term: factor ( ( '-' | '+') factor)*;
 factor: unary ( ( '/' | '*' | '%') unary)*;
 
-unary: ( '!' | '-') unary | primary;
+unary: ( '!' | '-') unary | call;
+call: primary callArguments*;
+callArguments: '(' arguments? ')';
+arguments: expression ( ',' expression)*;
+function: IDENTIFIER '(' parameters? ')' block;
+parameters: IDENTIFIER ( ',' IDENTIFIER)*;
 
 primary:
 	number
