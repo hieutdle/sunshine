@@ -16,4 +16,17 @@ public class ArrayIteratorsTest extends AbstractLoxTest {
                 """, "14\n");
     }
 
+    @Test
+    public void testArrayForOfIteration() {
+        runAndExpect("testArrayForOfIteration", """
+                var a = [];
+                a[0] = 3;
+                a[1] = 4;
+                var sum = 0;
+                for (var ea of a) {
+                    sum = sum + ea;
+                }
+                print(sum);
+                """, "7\n");
+    }
 }

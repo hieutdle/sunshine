@@ -42,6 +42,7 @@ import de.hpi.swa.lox.parser.LoxParser.ExpressionContext;
 import de.hpi.swa.lox.parser.LoxParser.FactorContext;
 import de.hpi.swa.lox.parser.LoxParser.FalseContext;
 import de.hpi.swa.lox.parser.LoxParser.ForInStmtContext;
+import de.hpi.swa.lox.parser.LoxParser.ForOfStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.ForStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.IfStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.Logic_andContext;
@@ -744,7 +745,6 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     @Override
     public Void visitForInStmt(ForInStmtContext ctx) {
 
-        // 1. Create new scope for loop variable
         curScope = new LexicalScope(curScope);
 
         // 2. Declare and initialize 'i' to 0
@@ -762,10 +762,10 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         // - Get array size
         // - Compare i < size
         b.beginLoxIsTruthy();
-        b.beginLoxLessThan(); // [i, size] -> [i < size]
-        curScope.load(loopVar); // Push i
-        b.beginLoxArraySize(); // [i, array] -> [i, size]
-        visit(ctx.expression()); // Push array (from 'in' clause)
+        b.beginLoxLessThan();
+        curScope.load(loopVar);
+        b.beginLoxArraySize();
+        visit(ctx.expression());
         b.endLoxArraySize();
         b.endLoxLessThan();
         b.endLoxIsTruthy();
@@ -776,17 +776,75 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
 
         curScope.beginStore(loopVar); // Store back to i
         // Increment i: i = i + 1
-        b.beginLoxAdd(); // [i, 1] -> [i+1]
-        curScope.load(loopVar); // Push i
-        b.emitLoadConstant(1L); // Push 1
+        b.beginLoxAdd();
+        curScope.load(loopVar);
+        b.emitLoadConstant(1L);
         b.endLoxAdd();
         curScope.endStore();
 
         b.endBlock();
 
-        // 6. Cleanup
         b.endWhile();
-        curScope = curScope.parent; // Exit loop scope
+        curScope = curScope.parent;
+
+        return null;
+    }
+
+    @Override
+    public Void visitForOfStmt(ForOfStmtContext ctx) {
+        curScope = new LexicalScope(curScope);
+
+        // 2. Declare and initialize 'i' to 0
+        String loopVar = ctx.each.getText();
+        String index = "index";
+
+        curScope.define(loopVar, ctx);
+        curScope.define(index, ctx);
+
+        curScope.beginStore(index);
+        b.emitLoadConstant(0L);
+        curScope.endStore();
+
+        b.beginWhile();
+
+        // Condition structure:
+        // - Load i
+        // - Load array
+        // - Get array size
+        // - Compare i < size
+        b.beginLoxIsTruthy();
+        b.beginLoxLessThan();
+        curScope.load(index);
+        b.beginLoxArraySize();
+        visit(ctx.expression());
+        b.endLoxArraySize();
+        b.endLoxLessThan();
+        b.endLoxIsTruthy();
+
+        // Loop body + increment
+        b.beginBlock();
+
+        curScope.beginStore(loopVar);
+        // Assign ea = a[i]
+        b.beginLoxReadArray();
+        visit(ctx.expression());
+        curScope.load(index);
+        b.endLoxReadArray();
+        curScope.endStore();
+        visit(ctx.statement()); // User's code
+
+        curScope.beginStore(index); // Store back to i
+        // Increment i: i = i + 1
+        b.beginLoxAdd();
+        curScope.load(index);
+        b.emitLoadConstant(1L);
+        b.endLoxAdd();
+        curScope.endStore();
+
+        b.endBlock();
+
+        b.endWhile();
+        curScope = curScope.parent;
 
         return null;
     }
