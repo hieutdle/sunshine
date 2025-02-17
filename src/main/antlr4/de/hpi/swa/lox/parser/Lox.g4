@@ -28,9 +28,9 @@ statement:
 	| forInStmt;
 
 forOfStmt:
-	'for' '(' each = varDecl 'of' arr = expression ')' body = statement;
+	'for' '(' 'var' each = IDENTIFIER 'of' arr = expression ')' body = statement;
 forInStmt:
-	'for' '(' each = varDecl 'in' arr = expression ')' body = statement;
+	'for' '(' 'var' each = IDENTIFIER 'in' arr = expression ')' body = statement;
 postfixConditionStmt:
 	then = statementBody keyword = ('if' | 'unless') '(' condition = expression ')' ';';
 statementBody: expression | 'print' exp = expression;
@@ -47,7 +47,6 @@ whileStmt:
 
 varDecl:
 	'var' IDENTIFIER ('=' expression)? ';'
-	| 'var' IDENTIFIER
 	| IDENTIFIER ':=' expression ';';
 
 exprStmt: expression ';';

@@ -448,7 +448,8 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
         @Fallback
         @CompilerDirectives.TruffleBoundary
         static boolean typeError(Object left, Object right, @Bind Node node) {
-            throw new LoxRuntimeError("Cannot compare " + left + " and " + right, node);
+            throw new LoxRuntimeError("Cannot compare " + left + "of type " + left.getClass().getSimpleName() + " and "
+                    + right + "of type " + right.getClass().getSimpleName(), node);
         }
     }
 
@@ -784,7 +785,7 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
     @Operation
     public static final class LoxArraySize {
         @Specialization
-        static int doLoxArray(LoxArray array) {
+        static long doLoxArray(LoxArray array) {
             return array.getSize();
         }
 

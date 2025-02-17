@@ -41,6 +41,7 @@ import de.hpi.swa.lox.parser.LoxParser.EqualityContext;
 import de.hpi.swa.lox.parser.LoxParser.ExpressionContext;
 import de.hpi.swa.lox.parser.LoxParser.FactorContext;
 import de.hpi.swa.lox.parser.LoxParser.FalseContext;
+import de.hpi.swa.lox.parser.LoxParser.ForInStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.ForStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.IfStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.Logic_andContext;
@@ -741,37 +742,51 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
-    public Void visitForOfStmt(LoxParser.ForOfStmtContext ctx) {
+    public Void visitForInStmt(ForInStmtContext ctx) {
 
+        // 1. Create new scope for loop variable
         curScope = new LexicalScope(curScope);
 
-        b.beginBlock();
-        ParserRuleContext init = ctx.varDecl();
-        if (init != null) {
-            visit(init);
-        }
+        // 2. Declare and initialize 'i' to 0
+        String loopVar = ctx.each.getText();
+        curScope.define(loopVar, ctx);
+        curScope.beginStore(loopVar);
+        b.emitLoadConstant(0L);
+        curScope.endStore();
 
-        // condition
         b.beginWhile();
-        beginAttribution(ctx.each);
-        b.beginLoxIsTruthy();
-        b.beginLoxLessThan();
 
-        b.beginLoxArraySize();
-        visit(ctx.arr);
+        // Condition structure:
+        // - Load i
+        // - Load array
+        // - Get array size
+        // - Compare i < size
+        b.beginLoxIsTruthy();
+        b.beginLoxLessThan(); // [i, size] -> [i < size]
+        curScope.load(loopVar); // Push i
+        b.beginLoxArraySize(); // [i, array] -> [i, size]
+        visit(ctx.expression()); // Push array (from 'in' clause)
         b.endLoxArraySize();
         b.endLoxLessThan();
         b.endLoxIsTruthy();
 
-        endAttribution();
-
+        // Loop body + increment
         b.beginBlock();
-        visit(ctx.body);
-        b.endBlock();
-        b.endWhile();
+        visit(ctx.statement()); // User's code
 
-        curScope = curScope.parent;
+        curScope.beginStore(loopVar); // Store back to i
+        // Increment i: i = i + 1
+        b.beginLoxAdd(); // [i, 1] -> [i+1]
+        curScope.load(loopVar); // Push i
+        b.emitLoadConstant(1L); // Push 1
+        b.endLoxAdd();
+        curScope.endStore();
+
         b.endBlock();
+
+        // 6. Cleanup
+        b.endWhile();
+        curScope = curScope.parent; // Exit loop scope
 
         return null;
     }
