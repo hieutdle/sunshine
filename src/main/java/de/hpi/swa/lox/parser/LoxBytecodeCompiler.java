@@ -740,6 +740,42 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitForOfStmt(LoxParser.ForOfStmtContext ctx) {
+
+        curScope = new LexicalScope(curScope);
+
+        b.beginBlock();
+        ParserRuleContext init = ctx.varDecl();
+        if (init != null) {
+            visit(init);
+        }
+
+        // condition
+        b.beginWhile();
+        beginAttribution(ctx.each);
+        b.beginLoxIsTruthy();
+        b.beginLoxLessThan();
+
+        b.beginLoxArraySize();
+        visit(ctx.arr);
+        b.endLoxArraySize();
+        b.endLoxLessThan();
+        b.endLoxIsTruthy();
+
+        endAttribution();
+
+        b.beginBlock();
+        visit(ctx.body);
+        b.endBlock();
+        b.endWhile();
+
+        curScope = curScope.parent;
+        b.endBlock();
+
+        return null;
+    }
+
     private class LexicalScope {
         final LexicalScope parent;
         final Map<String, BytecodeLocal> locals;

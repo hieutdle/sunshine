@@ -794,4 +794,5 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
             throw new LoxRuntimeError("Expected array, got " + array.getClass().getSimpleName(), node);
         }
     }
+
 }
