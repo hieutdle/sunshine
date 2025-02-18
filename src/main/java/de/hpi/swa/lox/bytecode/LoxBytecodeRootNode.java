@@ -18,11 +18,13 @@ import com.oracle.truffle.api.dsl.Cached;
 import com.oracle.truffle.api.dsl.Fallback;
 import com.oracle.truffle.api.dsl.Specialization;
 import com.oracle.truffle.api.frame.FrameDescriptor;
+import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.DirectCallNode;
 import com.oracle.truffle.api.nodes.IndirectCallNode;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.strings.TruffleString;
+import com.oracle.truffle.api.frame.MaterializedFrame;
 
 import de.hpi.swa.lox.LoxLanguage;
 import de.hpi.swa.lox.error.LoxRuntimeError;
@@ -820,10 +822,12 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
     @Operation
     @ConstantOperand(type = String.class)
     @ConstantOperand(type = RootCallTarget.class)
+    @ConstantOperand(type = int.class)
     public static final class LoxCreateFunction {
         @Specialization
-        static LoxFunction doDefault(VirtualFrame frame, String name, RootCallTarget callTarget) {
-            return new LoxFunction(name, callTarget);
+        static LoxFunction doDefault(VirtualFrame frame, String name, RootCallTarget callTarget, int frameLevel) {
+            MaterializedFrame materializedFrame = frameLevel > 0 ? frame.materialize() : null;
+            return new LoxFunction(name, callTarget, materializedFrame);
         }
     }
 
@@ -847,6 +851,15 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
         @Specialization
         static Object doDefault(Object obj, @Variadic Object[] arguments, @Bind Node node) {
             throw new LoxRuntimeError("cannot call " + obj, node);
+        }
+    }
+
+    @Operation
+    @ConstantOperand(type = int.class)
+    public static final class LoxLoadMaterialzedFrameN {
+        @Specialization
+        public static MaterializedFrame doDefault(VirtualFrame frame, int index) {
+            return LoxFunction.getFrameAtLevelN(frame, index);
         }
     }
 }

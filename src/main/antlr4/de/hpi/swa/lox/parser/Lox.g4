@@ -76,9 +76,12 @@ factor: unary ( ( '/' | '*' | '%') unary)*;
 unary: ( '!' | '-') unary | call;
 call: primary callArguments*;
 callArguments: '(' arguments? ')';
-arguments: expression ( ',' expression)*;
+arguments:
+	(expression | IDENTIFIER ':' expression) (
+		',' (expression | IDENTIFIER ':' expression)
+	)*;
 function: IDENTIFIER '(' parameters? ')' block;
-parameters: IDENTIFIER ( ',' IDENTIFIER)*;
+parameters: IDENTIFIER (',' IDENTIFIER)*;
 
 primary:
 	number
@@ -89,7 +92,15 @@ primary:
 	| variableExpr
 	| '(' expression ')'
 	| array
-	| arrayExpr;
+	| arrayExpr
+	| lambda;
+
+lambda:
+	'('? params = parameters? ')'? '=>' (
+		bodyBlock = block
+		| bodyExpr = expression
+	);
+
 arrayExpr: left = variableExpr '[' index = expression ']';
 array: '[' (expression (',' expression)*)? ']';
 
