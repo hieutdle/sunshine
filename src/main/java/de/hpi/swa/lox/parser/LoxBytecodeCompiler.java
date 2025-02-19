@@ -55,6 +55,7 @@ import de.hpi.swa.lox.parser.LoxParser.IfStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.LambdaContext;
 import de.hpi.swa.lox.parser.LoxParser.Logic_andContext;
 import de.hpi.swa.lox.parser.LoxParser.Logic_orContext;
+import de.hpi.swa.lox.parser.LoxParser.MethodContext;
 import de.hpi.swa.lox.parser.LoxParser.NilContext;
 import de.hpi.swa.lox.parser.LoxParser.NumberContext;
 import de.hpi.swa.lox.parser.LoxParser.PostfixConditionStmtContext;
@@ -62,6 +63,7 @@ import de.hpi.swa.lox.parser.LoxParser.PrintStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.ProgramContext;
 import de.hpi.swa.lox.parser.LoxParser.ReturnStmtContext;
 import de.hpi.swa.lox.parser.LoxParser.StatementContext;
+import de.hpi.swa.lox.parser.LoxParser.StaticFunctionContext;
 import de.hpi.swa.lox.parser.LoxParser.StringContext;
 import de.hpi.swa.lox.parser.LoxParser.TermContext;
 import de.hpi.swa.lox.parser.LoxParser.TrueContext;
@@ -883,15 +885,25 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitStaticFunction(StaticFunctionContext ctx) {
+        visitFunction(ctx.function());
+        return null;
+    }
+
+    @Override
     public Void visitFunction(LoxParser.FunctionContext function) {
+
         String name = function.IDENTIFIER().getText();
+        if (function.getParent() instanceof StaticFunctionContext) {
+            name = "static_" + name;
+        }
         // Define the function in the current scope but do NOT execute its body yet.
         b.beginRoot();
         beginAttribution(function);
         b.beginBlock();
         // Handle function parameters (if any)
         List<TerminalNode> parameters = enterFunction(function); // enter the function scope
-        if (function.getParent() instanceof ClassDeclContext) {
+        if (function.getParent() instanceof MethodContext) {
             curScope.define("this", function);
             curScope.beginStore("this");
             b.emitLoxLoadThis();
@@ -993,9 +1005,16 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         curScope.define(name, ctx);
         curScope.beginStore(name);
         b.beginLoxDeclareClass(name);
-        for (var fun : ctx.function()) {
-            visitFunction(fun);
+        for (var method : ctx.method()) {
+            if (method.function() != null) { // Ensure it's a function, not static
+                visitFunction(method.function());
+            }
+            if (method.staticFunction() != null) {
+                visitStaticFunction(method.staticFunction());
+            }
+
         }
+
         b.endLoxDeclareClass();
         curScope.endStore();
         return null;

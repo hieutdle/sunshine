@@ -5,9 +5,11 @@ import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.frame.VirtualFrame;
+import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.object.DynamicObjectLibrary;
 
-public class LoxFunction {
+public class LoxFunction implements TruffleObject {
+
     public final String name;
     private final RootCallTarget callTarget;
     private final MaterializedFrame outerFrame;

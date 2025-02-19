@@ -5,7 +5,7 @@ import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.object.Shape;
 
 public class LoxClass extends DynamicObject {
-    final String name;
+    public final String name;
     static final Shape classShape = Shape.newBuilder().allowImplicitCastIntToLong(true).build();
     public final Shape instanceShape = Shape.newBuilder()
             .addConstantProperty("Class", this, 0)

@@ -24,6 +24,7 @@ import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.library.CachedLibrary;
 
 import com.oracle.truffle.api.nodes.Node;
+import com.oracle.truffle.api.object.DynamicObject;
 import com.oracle.truffle.api.object.DynamicObjectLibrary;
 import com.oracle.truffle.api.strings.TruffleString;
 
@@ -920,6 +921,21 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
             }
             return result;
         }
+
+        @Specialization(limit = "1")
+        public static Object readClassProperty(String name, LoxClass klass,
+                @CachedLibrary("klass") DynamicObjectLibrary classDylib,
+                @Bind Node node) {
+            // Get method or property from the class
+            var m = classDylib.getOrDefault(klass, "static_" + name, Nil.INSTANCE);
+
+            // Check if method exists
+            if (m == Nil.INSTANCE) {
+                throw new LoxRuntimeError("Undefined (static) property '" + name + "' for class " + klass.name, node);
+            }
+            return m;
+        }
+
     }
 
     @Operation

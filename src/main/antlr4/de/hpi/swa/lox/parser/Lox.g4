@@ -51,7 +51,10 @@ varDecl:
 	'var' IDENTIFIER ('=' expression)? ';'
 	| IDENTIFIER ':=' expression ';';
 funDecl: 'fun' function ';'?;
-classDecl: 'class' IDENTIFIER '{' function* '}';
+classDecl: 'class' IDENTIFIER '{' method* '}';
+method: function | staticFunction;
+staticFunction: 'static' function;
+// classDecl: 'class' IDENTIFIER '{' function* '}';
 
 exprStmt: expression ';';
 printStmt: 'print' expression ';';
