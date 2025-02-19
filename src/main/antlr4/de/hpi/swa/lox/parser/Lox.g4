@@ -12,7 +12,7 @@ grammar Lox;
 
 program: declaration* EOF;
 
-declaration: varDecl | statement | funDecl;
+declaration: classDecl | varDecl | statement | funDecl;
 
 statement:
 	exprStmt
@@ -51,6 +51,7 @@ varDecl:
 	'var' IDENTIFIER ('=' expression)? ';'
 	| IDENTIFIER ':=' expression ';';
 funDecl: 'fun' function ';'?;
+classDecl: 'class' IDENTIFIER '{' function* '}';
 
 exprStmt: expression ';';
 printStmt: 'print' expression ';';
@@ -61,7 +62,8 @@ block: '{' declaration* '}';
 
 expression: assignment;
 
-assignment: IDENTIFIER '=' assignment | arrAssignment;
+assignment: (call '.')? IDENTIFIER '=' assignment
+	| arrAssignment;
 arrAssignment:
 	left = variableExpr '[' index = expression ']' '=' right = assignment
 	| other = logic_or;
@@ -75,7 +77,7 @@ factor: unary ( ( '/' | '*' | '%') unary)*;
 
 unary: ( '!' | '-') unary | call;
 call: primary callArguments*;
-callArguments: '(' arguments? ')';
+callArguments: '(' arguments? ')' | '.' IDENTIFIER;
 arguments:
 	(expression | IDENTIFIER ':' expression) (
 		',' (expression | IDENTIFIER ':' expression)

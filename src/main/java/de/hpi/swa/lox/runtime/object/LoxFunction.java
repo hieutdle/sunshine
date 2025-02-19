@@ -5,26 +5,31 @@ import com.oracle.truffle.api.RootCallTarget;
 import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.frame.MaterializedFrame;
 import com.oracle.truffle.api.frame.VirtualFrame;
+import com.oracle.truffle.api.object.DynamicObjectLibrary;
 
 public class LoxFunction {
-    private final String name;
+    public final String name;
     private final RootCallTarget callTarget;
     private final MaterializedFrame outerFrame;
+    private final LoxObject self;
 
-    public LoxFunction(String name, RootCallTarget callTarget, MaterializedFrame outerFrame) {
+    public LoxFunction(String name, RootCallTarget callTarget, MaterializedFrame outerFrame, LoxObject self) {
         this.name = name;
         this.callTarget = callTarget;
         this.outerFrame = outerFrame;
+        this.self = self;
+    }
+
+    public LoxFunction(String name, RootCallTarget callTarget, MaterializedFrame outerFrame) {
+        this(name, callTarget, outerFrame, null);
+    }
+
+    public LoxFunction(LoxObject obj, LoxFunction m) {
+        this(m.name, m.callTarget, m.outerFrame, obj);
     }
 
     public RootCallTarget getCallTarget() {
         return callTarget;
-    }
-
-    @CompilerDirectives.TruffleBoundary
-    @Override
-    public String toString() {
-        return "Function " + this.name;
     }
 
     public Object[] createArguments(Object[] userArguments) {
@@ -49,5 +54,22 @@ public class LoxFunction {
             func = getCurrentFunction(func.outerFrame);
         }
         return func.outerFrame;
+    }
+
+    @CompilerDirectives.TruffleBoundary
+    public String toString() {
+        return self == null ? "Function " + name : self.klass.name + "#" + name;
+    }
+
+    public static LoxObject getThis(VirtualFrame frame) {
+        return getCurrentFunction(frame).self;
+    }
+
+    public static LoxFunction lookupMethod(LoxObject obj, String name, DynamicObjectLibrary klassDylib) {
+        var m = klassDylib.getOrDefault(obj.klass, name, null);
+        if (m != null) {
+            return new LoxFunction(obj, (LoxFunction) m); // bind method to object
+        }
+        return null;
     }
 }
