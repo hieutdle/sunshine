@@ -102,13 +102,8 @@ public class LoxMain extends AbstractLanguageLauncher {
                 }
             }
 
-            if (!isStatement) {
-                if (line.endsWith(";")) {
-                    line = "print " + line;
-                } else {
-                    line = "print " + line + ";";
-                }
-            }
+            if (!isStatement && !line.endsWith(";"))
+                line = "print " + line + ";";
 
             try {
                 context.eval("lox", line);

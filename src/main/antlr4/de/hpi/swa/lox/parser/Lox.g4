@@ -81,7 +81,9 @@ arguments:
 		',' (expression | IDENTIFIER ':' expression)
 	)*;
 function: IDENTIFIER '(' parameters? ')' block;
-parameters: IDENTIFIER (',' IDENTIFIER)*;
+parameters:
+	IDENTIFIER (',' IDENTIFIER)* (',' '...' vararg = IDENTIFIER)?
+	| '...' vararg = IDENTIFIER;
 
 primary:
 	number

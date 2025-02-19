@@ -867,14 +867,37 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         b.beginBlock();
         // Handle function parameters (if any)
         List<TerminalNode> parameters = enterFunction(function);
-        for (int i = 0; i < parameters.size(); i++) {
-            var param = parameters.get(i);
+
+        if (function.parameters() != null && function.parameters().vararg != null) {
+            for (int i = 0; i < parameters.size() - 1; i++) {
+                var param = parameters.get(i);
+                var paramName = param.getText();
+                curScope.define(paramName, ctx);
+                curScope.beginStore(paramName);
+                b.emitLoxLoadArgument(i);
+                curScope.endStore();
+            }
+
+            var param = parameters.get(parameters.size() - 1);
             var paramName = param.getText();
             curScope.define(paramName, ctx);
             curScope.beginStore(paramName);
-            b.emitLoxLoadArgument(i); // Load function argument
+            b.beginLoxLoadVariableArguments();
+            b.emitLoadConstant(parameters.size() - 1);
+            b.endLoxLoadVariableArguments();
             curScope.endStore();
+        } else {
+            // No varargs, process normally
+            for (int i = 0; i < parameters.size(); i++) {
+                var param = parameters.get(i);
+                var paramName = param.getText();
+                curScope.define(paramName, ctx);
+                curScope.beginStore(paramName);
+                b.emitLoxLoadArgument(i);
+                curScope.endStore();
+            }
         }
+
         b.beginBlock(); // Start the block for the function body
         // Visit the function's body, but only store it as part of the function definition, not executing it
         visit(ctx.function().block()); // This visits the function body without executing it immediately
@@ -970,6 +993,7 @@ public final class LoxBytecodeCompiler extends LoxBaseVisitor<Void> {
         if (parameters != null) {
             for (int i = 0; i < parameters.IDENTIFIER().size(); i++) {
                 TerminalNode param = parameters.IDENTIFIER(i);
+
                 result.add(param);
             }
         }

@@ -2,6 +2,7 @@ package de.hpi.swa.lox.bytecode;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.Objects;
 
 import com.oracle.truffle.api.CompilerDirectives;
@@ -24,7 +25,6 @@ import com.oracle.truffle.api.nodes.DirectCallNode;
 import com.oracle.truffle.api.nodes.IndirectCallNode;
 import com.oracle.truffle.api.nodes.Node;
 import com.oracle.truffle.api.strings.TruffleString;
-import com.oracle.truffle.api.frame.MaterializedFrame;
 
 import de.hpi.swa.lox.LoxLanguage;
 import de.hpi.swa.lox.error.LoxRuntimeError;
@@ -768,7 +768,9 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
     public static final class LoxArrayLiterals {
         @Specialization
         static Object doDefault(@Variadic Object[] elements) {
-            return new LoxArray(elements);
+            // Always construct a new array from the variadic input
+            Object[] array = Arrays.copyOf(elements, elements.length);
+            return new LoxArray(array); // Ensure LoxArray receives a proper array
         }
     }
 
@@ -816,6 +818,15 @@ public abstract class LoxBytecodeRootNode extends LoxRootNode implements Bytecod
         static Object doLoadOutOfBounds(int index) {
             /* Use the default null value. */
             return Nil.INSTANCE;
+        }
+    }
+
+    @Operation
+    public static final class LoxLoadVariableArguments {
+        @Specialization
+        static Object doDefault(VirtualFrame frame, int index,
+                @Bind("frame.getArguments()") Object[] arguments) {
+            return new LoxArray(Arrays.copyOfRange(arguments, index + 1, arguments.length));
         }
     }
 
