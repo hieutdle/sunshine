@@ -1,6 +1,6 @@
-# Sunshine -- A Lox Truffle Bytecode Interpreter
+# tlox -- A Lox Truffle Bytecode Interpreter
 
-Sunshine is a bytecode interpreter for the Lox programming language. It is implemented using the Truffle framework, which is a self-optimizing runtime for programming languages.
+tlox is a bytecode interpreter for the Lox programming language. It is implemented using the Truffle framework, which is a self-optimizing runtime for programming languages.
 This implementation is developed as part of the Build Your Own Programming Language course at Software Architecture Group, Hasso Plattner Institute, Potsdam.
 
 ## Getting Started
